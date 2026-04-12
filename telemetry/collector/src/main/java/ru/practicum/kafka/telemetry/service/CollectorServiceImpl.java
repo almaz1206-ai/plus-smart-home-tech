@@ -2,6 +2,7 @@ package ru.practicum.kafka.telemetry.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.specific.SpecificRecordBase;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import ru.practicum.kafka.telemetry.config.KafkaProducerConfig;
@@ -15,7 +16,7 @@ import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 @Service
 @RequiredArgsConstructor
 public class CollectorServiceImpl implements CollectorService {
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaTemplate<String, SpecificRecordBase> kafkaTemplate;
     private final KafkaProducerConfig config;
     private final EventMapper eventMapper;
 
@@ -42,18 +43,7 @@ public class CollectorServiceImpl implements CollectorService {
 
         long eventTimestamp = sensorEventAvro.getTimestamp().toEpochMilli();
 
-        kafkaTemplate.send(sensorTopic, null, eventTimestamp, sensorEventAvro.getHubId(), sensorEventAvro)
-                .whenComplete((result, exception) -> {
-                    if (exception == null) {
-                        log.info("Событие сенсора для hubId: {} успешно отправлено, offset: {}",
-                                sensorEventAvro.getHubId(),
-                                result.getRecordMetadata().offset());
-                    } else {
-                        log.error("Не удалось отправить событие сенсора для hubId: {}: {}",
-                                sensorEventAvro.getHubId(),
-                                exception.getMessage());
-                    }
-                });
+        sendEvent(sensorTopic, eventTimestamp, sensorEventAvro.getHubId(), sensorEventAvro, "Событие сенсора");
     }
 
     @Override
@@ -72,16 +62,18 @@ public class CollectorServiceImpl implements CollectorService {
 
         long eventTimestamp = hubEventAvro.getTimestamp().toEpochMilli();
 
-        kafkaTemplate.send(hubTopic, null, eventTimestamp, hubEventAvro.getHubId(), hubEventAvro)
+        sendEvent(hubTopic, eventTimestamp, hubEventAvro.getHubId(), hubEventAvro, "Событие хаба");
+    }
+
+    private void sendEvent(String topic, long timestamp, String hubId, SpecificRecordBase event, String eventType) {
+        kafkaTemplate.send(topic, null, timestamp, hubId, event)
                 .whenComplete((result, exception) -> {
                     if (exception == null) {
-                        log.info("Событие хаба для hubId: {} успешно отправлено, offset: {}",
-                                hubEventAvro.getHubId(),
-                                result.getRecordMetadata().offset());
+                        log.info("{} для hubId: {} успешно отправлен в топик {}, offset: {}",
+                                eventType, hubId, topic, result.getRecordMetadata().offset());
                     } else {
-                        log.error("Не удалось отправить событие хаба для hubId: {}: {}",
-                                hubEventAvro.getHubId(),
-                                exception.getMessage());
+                        log.error("Не удалось отправить {} для hubId: {} в топик {}: {}",
+                                eventType, hubId, topic, exception.getMessage());
                     }
                 });
     }
