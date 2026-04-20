@@ -1,28 +1,62 @@
 package ru.practicum.kafka.telemetry.controller;
 
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import ru.practicum.kafka.telemetry.model.hub.HubEvent;
-import ru.practicum.kafka.telemetry.model.sensor.SensorEvent;
-import ru.practicum.kafka.telemetry.service.CollectorService;
+import com.google.protobuf.Empty;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
+import io.grpc.stub.StreamObserver;
+import net.devh.boot.grpc.server.service.GrpcService;
+import ru.practicum.kafka.telemetry.handler.hub.GrpcHubEventHandler;
+import ru.practicum.kafka.telemetry.handler.sensor.GrpcSensorEventHandler;
+import ru.yandex.practicum.grpc.telemetry.collector.CollectorControllerGrpc;
+import ru.yandex.practicum.grpc.telemetry.event.HubEventProto;
+import ru.yandex.practicum.grpc.telemetry.event.SensorEventProto;
 
-@RestController
-@RequestMapping("/events")
-@RequiredArgsConstructor
-public class CollectorController {
-    private final CollectorService collectorService;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
-    @PostMapping("/sensors")
-    public void sendSensorsEvent(@Valid @RequestBody SensorEvent sensorEvent) {
-        collectorService.sendSensorEvent(sensorEvent);
+@GrpcService
+public class CollectorController extends CollectorControllerGrpc.CollectorControllerImplBase {
+    private final Map<SensorEventProto.PayloadCase, GrpcSensorEventHandler> sensorHandlers;
+    private final Map<HubEventProto.PayloadCase, GrpcHubEventHandler> hubHandlers;
+
+    public CollectorController(Set<GrpcSensorEventHandler> sensorEventHandlers, Set<GrpcHubEventHandler> hubEventHandlers) {
+        this.sensorHandlers = sensorEventHandlers.stream().collect(Collectors.toMap(GrpcSensorEventHandler::getMessageType, Function.identity()));
+        this.hubHandlers = hubEventHandlers.stream().collect(Collectors.toMap(GrpcHubEventHandler::getMessageType, Function.identity()));
     }
 
-    @PostMapping("/hubs")
-    public void sendHubEvent(@Valid @RequestBody HubEvent hubEvent) {
-        collectorService.sendHubEvent(hubEvent);
+    @Override
+    public void collectSensorEvent(SensorEventProto request, StreamObserver<Empty> responseObserver) {
+        try {
+            GrpcSensorEventHandler handler = sensorHandlers.get(request.getPayloadCase());
+            if (handler == null) {
+                throw new IllegalArgumentException("Неизвестный тип сенсора");
+            }
+
+            handler.handle(request);
+            responseObserver.onNext(Empty.getDefaultInstance());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withDescription(e.getMessage())
+                    .withCause(e)));
+        }
+    }
+
+    @Override
+    public void collectHubEvent(HubEventProto request, StreamObserver<Empty> responseObserver) {
+        try {
+            GrpcHubEventHandler handler = hubHandlers.get(request.getPayloadCase());
+            if (handler == null) {
+                throw new IllegalArgumentException("Неизвестный тип хаба");
+            }
+
+            handler.handle(request);
+            responseObserver.onNext(Empty.getDefaultInstance());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withDescription(e.getMessage())
+                    .withCause(e)));
+        }
     }
 }
