@@ -7,6 +7,8 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
 
+import java.util.concurrent.TimeUnit;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -15,6 +17,12 @@ public class KafkaSnapshotProducer {
 
     @Value("${aggregator.kafka.topic.snapshots}")
     private String snapshotTopic;
+
+    public void sendSync(SensorsSnapshotAvro avro) throws Exception {
+        log.debug("Синхронная отправка снапшота для hubId: {}", avro.getHubId());
+
+        kafkaTemplate.send(snapshotTopic, avro.getHubId(), avro).get(30000, TimeUnit.MILLISECONDS);
+    }
 
     public void send(SensorsSnapshotAvro avro) {
         kafkaTemplate.send(snapshotTopic, avro.getHubId(), avro)

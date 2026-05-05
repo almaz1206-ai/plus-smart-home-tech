@@ -73,17 +73,6 @@ public class AvroToEntityMapper {
         return action;
     }
 
-    public Set<Action> toActionSet(List<DeviceActionAvro> avros) {
-        if (avros == null) {
-            return null;
-        }
-        Set<Action> actions = new HashSet<>(avros.size());
-        for (DeviceActionAvro avro : avros) {
-            actions.add(toAction(avro));
-        }
-        return actions;
-    }
-
     public Integer unionToInteger(Object value) {
         return switch (value) {
             case null -> null;

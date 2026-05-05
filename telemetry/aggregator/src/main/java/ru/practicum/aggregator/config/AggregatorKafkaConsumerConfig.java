@@ -2,13 +2,17 @@ package ru.practicum.aggregator.config;
 
 import lombok.Getter;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.kafka.listener.ContainerProperties;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 
-import java.util.Properties;
+import java.util.HashMap;
+import java.util.Map;
 
 @Configuration
 @Getter
@@ -47,25 +51,31 @@ public class AggregatorKafkaConsumerConfig {
     private int maxPartitionFetchBytes;
 
     @Bean
-    public KafkaConsumer<String, SensorEventAvro> kafkaConsumer() {
-        Properties properties = getConsumerProperties();
-        return new KafkaConsumer<>(properties);
+    public ConsumerFactory<String, SensorEventAvro> consumerFactory() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, clientGroupId);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, keyDeserializer);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, valueDeserializer);
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, autoOffsetReset);
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords);
+        props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, fetchMinBytes);
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false); // Ручной коммит
+        props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, fetchMaxWaitMs);
+        props.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, maxPartitionFetchBytes);
+
+        return new DefaultKafkaConsumerFactory<>(props);
     }
 
-    private Properties getConsumerProperties() {
-        Properties properties = new Properties();
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, SensorEventAvro>
+    kafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, SensorEventAvro> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory());
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
+        factory.getContainerProperties().setPollTimeout(fetchMaxWaitMs);
 
-        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        properties.put(ConsumerConfig.GROUP_ID_CONFIG, clientGroupId);
-        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, keyDeserializer);
-        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, valueDeserializer);
-        properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, autoOffsetReset);
-        properties.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords);
-        properties.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, fetchMinBytes);
-        properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, enableAutoCommit);
-        properties.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, fetchMaxWaitMs);
-        properties.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, maxPartitionFetchBytes);
-
-        return properties;
+        return factory;
     }
 }

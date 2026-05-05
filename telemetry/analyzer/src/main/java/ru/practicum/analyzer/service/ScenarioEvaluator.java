@@ -66,8 +66,7 @@ public class ScenarioEvaluator implements SnapshotProcessor {
         return extractValue(sensorState, sc.getCondition())
                 .map(actual -> {
                     Condition condition = sc.getCondition();
-                    boolean ok = evaluate(condition.getOperation(), actual, condition.getValue());
-                    return ok;
+                    return evaluate(condition.getOperation(), actual, condition.getValue());
                 })
                 .orElse(false);
     }
