@@ -11,7 +11,7 @@ import ru.practicum.dto.warehouse.BookedProductsDto;
 import ru.practicum.dto.warehouse.NewProductInWareHouseDto;
 import ru.practicum.exception.BadRequestException;
 import ru.practicum.exception.NoSpecifiedProductInWarehouseException;
-import ru.practicum.exception.ProductInShoppingCartLowQuantityInWarehouse;
+import ru.practicum.exception.ProductInShoppingCartLowQuantityInWarehouseException;
 import ru.practicum.exception.SpecifiedProductAlreadyInWarehouseException;
 import ru.practicum.mapper.WarehouseMapper;
 import ru.practicum.model.Warehouse;
@@ -33,7 +33,7 @@ public class WarehouseServiceImpl implements WarehouseService {
     private static final String[] ADDRESSES =
             new String[] {"ADDRESS_1", "ADDRESS_2"};
 
-    private static final String CURRENT_ADDRESS =
+    private final String CURRENT_ADDRESS =
             ADDRESSES[Random.from(new SecureRandom()).nextInt(0, ADDRESSES.length)];
 
     @Transactional
@@ -97,7 +97,7 @@ public class WarehouseServiceImpl implements WarehouseService {
 
             if (warehouse.getQuantity() < requestQuantity) {
                 log.warn("");
-                throw new ProductInShoppingCartLowQuantityInWarehouse(String.format(
+                throw new ProductInShoppingCartLowQuantityInWarehouseException(String.format(
                         "Недостаточно товара на складе. Товара с id=%s, доступно=%d",
                         productId, warehouse.getQuantity()
                 ));

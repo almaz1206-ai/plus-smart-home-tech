@@ -11,6 +11,7 @@ import ru.practicum.dto.warehouse.BookedProductsDto;
 import ru.practicum.enums.CartState;
 import ru.practicum.exception.BadRequestException;
 import ru.practicum.exception.NotAuthorizedUserException;
+import ru.practicum.exception.NotFoundException;
 import ru.practicum.feign.WarehouseClient;
 import ru.practicum.mapper.ShoppingCartMapper;
 import ru.practicum.model.ShoppingCart;
@@ -61,9 +62,8 @@ public class ShoppingCartServiceImpl implements ShoppingCartService {
                         .products(new HashMap<>())
                         .build());
 
-        cart = repository.save(cart);
-
         updateCartProducts(cart, products);
+        cart = repository.save(cart);
 
         try {
             log.info("Проверка наличия на складе: id={}, products={}", cart.getShoppingCartId(), cart.getProducts());
@@ -73,8 +73,6 @@ public class ShoppingCartServiceImpl implements ShoppingCartService {
         } catch (FeignException e) {
             throw new RuntimeException("Склад недоступен");
         }
-
-        cart = repository.save(cart);
 
         ShoppingCartDto res = mapper.toShoppingCartDto(cart);
 
@@ -146,6 +144,24 @@ public class ShoppingCartServiceImpl implements ShoppingCartService {
             cart.getProducts().remove(productId);
         } else {
             cart.getProducts().put(productId, newQuantity);
+        }
+
+        try {
+            log.info("Проверка наличия на складе после обновления корзины: id={}, products={}",
+                    cart.getShoppingCartId(), cart.getProducts());
+            BookedProductsDto bookedProductsDto = warehouseClient.checkProductQuantityInWarehouse(
+                    mapper.toShoppingCartDto(cart));
+
+            log.info("Проверка на складе успешна: {}", bookedProductsDto);
+        } catch (FeignException e) {
+            switch (e.status()) {
+                case 400:
+                    throw new BadRequestException("Недостаточно товара на складе");
+                case 404:
+                    throw new NotFoundException("Товар не найден на складе");
+                default:
+                    throw new RuntimeException("Склад недоступен");
+            }
         }
 
         return mapper.toShoppingCartDto(repository.save(cart));

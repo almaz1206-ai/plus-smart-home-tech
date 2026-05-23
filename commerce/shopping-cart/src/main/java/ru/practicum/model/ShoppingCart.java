@@ -34,6 +34,6 @@ public class ShoppingCart {
     @Builder.Default
     private CartState status = CartState.ACTIVE;
 
-    @Column(name = "username", nullable = false, unique = true)
+    @Column(name = "username", nullable = false)
     private String username;
 }

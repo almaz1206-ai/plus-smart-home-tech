@@ -2,9 +2,8 @@ package ru.practicum.feign;
 
 import jakarta.validation.Valid;
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
+import ru.practicum.dto.store.PageProductDto;
 import ru.practicum.dto.store.ProductDto;
 import ru.practicum.enums.ProductCategory;
 import ru.practicum.enums.QuantityState;
@@ -15,7 +14,10 @@ import java.util.UUID;
 public interface ShoppingStoreClient extends ShoppingStoreContract {
     @Override
     @GetMapping
-    Page<ProductDto> getProducts(@RequestParam ProductCategory productCategory, Pageable pageable);
+    PageProductDto getProducts(@RequestParam ProductCategory productCategory,
+                               @RequestParam(defaultValue = "0") int page,
+                               @RequestParam(defaultValue = "10") int size,
+                               @RequestParam(defaultValue = "productName,asc") String sort);
 
     @Override
     @GetMapping("/{productId}")
@@ -31,7 +33,7 @@ public interface ShoppingStoreClient extends ShoppingStoreContract {
 
     @Override
     @PostMapping("/removeProductFromStore")
-    Boolean deleteProductById(@RequestBody UUID productId);
+    void deleteProductById(@RequestBody UUID productId);
 
     @Override
     @PostMapping("/quantityState")
