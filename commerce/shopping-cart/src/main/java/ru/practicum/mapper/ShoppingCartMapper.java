@@ -7,6 +7,6 @@ import ru.practicum.model.ShoppingCart;
 @Component
 public class ShoppingCartMapper {
     public ShoppingCartDto toShoppingCartDto(ShoppingCart shoppingCart) {
-        return new ShoppingCartDto(shoppingCart.getShoppingCartId(), shoppingCart.getProducts());
+        return new ShoppingCartDto(shoppingCart.getShoppingCartId(), shoppingCart.getProducts(), shoppingCart.getUsername());
     }
 }

@@ -17,4 +17,7 @@ public class ShoppingCartDto {
 
     @NotNull
     private Map<UUID, Long> products;
+
+    @NotNull
+    private String username;
 }
