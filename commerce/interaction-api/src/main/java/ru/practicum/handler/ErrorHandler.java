@@ -123,6 +123,29 @@ public class ErrorHandler {
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
+    @ExceptionHandler(NoOrderFoundException.class)
+    public ResponseEntity<ApiError> handleNoOrderFoundException(NoOrderFoundException ex) {
+        ApiError response = createResponse(
+                ex,
+                "Заказ или оплата не найдены. Пожалуйста, проверьте идентификатор.",
+                HttpStatus.NOT_FOUND
+        );
+
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler
+    public ResponseEntity<ApiError> handleNotEnoughInfoInOrderToCalculateException(
+            NotEnoughInfoInOrderToCalculateException ex) {
+        ApiError response = createResponse(
+                ex,
+                "Недостаточно информации в заказе для расчёта стоимости.",
+                HttpStatus.BAD_REQUEST
+        );
+
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
     private ApiError createResponse(Exception ex, String userMessage, HttpStatus httpStatus) {
         ApiError response = ApiError.builder()
                 .message(ex.getMessage())

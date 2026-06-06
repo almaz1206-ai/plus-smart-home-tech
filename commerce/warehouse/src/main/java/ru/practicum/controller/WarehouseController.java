@@ -4,12 +4,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.dto.cart.ShoppingCartDto;
-import ru.practicum.dto.warehouse.AddProductToWarehouseDto;
-import ru.practicum.dto.warehouse.AddressDto;
-import ru.practicum.dto.warehouse.BookedProductsDto;
-import ru.practicum.dto.warehouse.NewProductInWareHouseDto;
+import ru.practicum.dto.warehouse.*;
 import ru.practicum.feign.WarehouseContract;
 import ru.practicum.service.WarehouseService;
+
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -18,26 +18,37 @@ public class WarehouseController implements WarehouseContract {
     private final WarehouseService warehouseService;
 
     @Override
-    @PutMapping
     public void addNewProductToWarehouse(@RequestBody @Valid NewProductInWareHouseDto newProductInWareHouseDto) {
         warehouseService.addNewProductToWarehouse(newProductInWareHouseDto);
     }
 
     @Override
-    @PostMapping("/check")
     public BookedProductsDto checkProductQuantityInWarehouse(@RequestBody @Valid ShoppingCartDto shoppingCartDto) {
         return warehouseService.checkProductQuantityInWarehouse(shoppingCartDto);
     }
 
     @Override
-    @PostMapping("/add")
     public void updateProductToWarehouse(@RequestBody @Valid AddProductToWarehouseDto addProductToWarehouseDto) {
         warehouseService.updateProductToWarehouse(addProductToWarehouseDto);
     }
 
     @Override
-    @GetMapping("/address")
     public AddressDto getWarehouseAddress() {
         return warehouseService.getWarehouseAddress();
+    }
+
+    @Override
+    public BookedProductsDto assemblyProductForOrder(@RequestBody @Valid AssemblyProductsForOrderRequest request) {
+        return warehouseService.assemblyProductForOrder(request);
+    }
+
+    @Override
+    public void shippedToDelivery(@RequestBody @Valid ShippedToDeliveryRequest request) {
+        warehouseService.shippedToDelivery(request);
+    }
+
+    @Override
+    public void returnProducts(@RequestBody Map<UUID, Long> products) {
+        warehouseService.returnProducts(products);
     }
 }
