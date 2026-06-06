@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS deliveries (
     delivery_id UUID PRIMARY KEY,
-    order_id UUID NOT NULL,
+    order_id UUID NOT NULL UNIQUE,
 
     from_country VARCHAR(255),
     from_city VARCHAR(255),

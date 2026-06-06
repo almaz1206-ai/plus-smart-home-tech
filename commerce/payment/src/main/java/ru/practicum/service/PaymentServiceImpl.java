@@ -72,6 +72,13 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentDto payment(OrderDto orderDto) {
         validateOrderForCalculation(orderDto);
 
+        UUID orderId = orderDto.getOrderId();
+
+        if (paymentRepository.existsByOrderId(orderId)) {
+            throw new BadRequestException("Платеж для заказа уже существует: " + orderId);
+        }
+
+
         BigDecimal productTotal = productCost(orderDto);
         BigDecimal deliveryTotal = getDeliveryPrice(orderDto);
         BigDecimal feeTotal = calculateFee(productTotal);

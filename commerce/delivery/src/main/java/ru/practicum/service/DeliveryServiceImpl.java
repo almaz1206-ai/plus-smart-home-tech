@@ -4,6 +4,7 @@ import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.practicum.config.DeliveryCostProperties;
 import ru.practicum.dto.delivery.DeliveryDto;
 import ru.practicum.dto.order.OrderDto;
 import ru.practicum.dto.warehouse.AddressDto;
@@ -15,32 +16,31 @@ import ru.practicum.exception.NotEnoughInfoInOrderToCalculateException;
 import ru.practicum.feign.OrderClient;
 import ru.practicum.feign.WarehouseClient;
 import ru.practicum.mapper.DeliveryMapper;
+import ru.practicum.model.Address;
 import ru.practicum.model.Delivery;
 import ru.practicum.repository.DeliveryRepository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class DeliveryServiceImpl implements DeliveryService {
-
-    private static final BigDecimal BASE_COST = BigDecimal.valueOf(5.0);
-    private static final BigDecimal ADDRESS_2_MULTIPLIER = BigDecimal.valueOf(2.0);
-    private static final BigDecimal FRAGILE_RATE = BigDecimal.valueOf(0.2);
-    private static final BigDecimal WEIGHT_RATE = BigDecimal.valueOf(0.3);
-    private static final BigDecimal VOLUME_RATE = BigDecimal.valueOf(0.2);
-    private static final BigDecimal DIFFERENT_STREET_RATE = BigDecimal.valueOf(0.2);
-
     private final DeliveryRepository deliveryRepository;
     private final DeliveryMapper deliveryMapper;
     private final OrderClient orderClient;
     private final WarehouseClient warehouseClient;
+    private final DeliveryCostProperties costProperties;
 
     @Override
     public DeliveryDto planDelivery(DeliveryDto deliveryDto) {
+        if (deliveryRepository.existsByOrderId(deliveryDto.getOrderId())) {
+            throw new BadRequestException("Доставка для заказа уже существует: " + deliveryDto.getOrderId());
+        }
+
         Delivery delivery = deliveryMapper.toDelivery(deliveryDto);
         delivery.setDeliveryId(null);
 
@@ -63,26 +63,28 @@ public class DeliveryServiceImpl implements DeliveryService {
                         "Доставка для заказа не найдена: " + orderDto.getOrderId()
                 ));
 
-        AddressDto warehouseAddress = deliveryMapperToAddressDto(delivery.getFromAddress());
-        AddressDto toAddress = deliveryMapperToAddressDto(delivery.getToAddress());
+        AddressDto warehouseAddress = mapDeliveryAddress(delivery.getFromAddress());
+        AddressDto toAddress = mapDeliveryAddress(delivery.getToAddress());
 
-        BigDecimal result = BASE_COST;
+        BigDecimal result = costProperties.getBaseCost();
 
         if (containsAddress2(warehouseAddress)) {
-            result = result.add(BASE_COST.multiply(ADDRESS_2_MULTIPLIER));
+            result = result.add(costProperties.getBaseCost().multiply(
+                    costProperties.getAddress2Multiplier()
+            ));
         } else {
-            result = result.add(BASE_COST);
+            result = result.add(costProperties.getBaseCost());
         }
 
         if (Boolean.TRUE.equals(orderDto.getFragile())) {
-            result = result.add(result.multiply(FRAGILE_RATE));
+            result = result.add(result.multiply(costProperties.getFragileRate()));
         }
 
-        result = result.add(BigDecimal.valueOf(orderDto.getDeliveryWeight()).multiply(WEIGHT_RATE));
-        result = result.add(BigDecimal.valueOf(orderDto.getDeliveryVolume()).multiply(VOLUME_RATE));
+        result = result.add(BigDecimal.valueOf(orderDto.getDeliveryWeight()).multiply(costProperties.getWeightRate()));
+        result = result.add(BigDecimal.valueOf(orderDto.getDeliveryVolume()).multiply(costProperties.getVolumeRate()));
 
         if (!sameStreet(warehouseAddress, toAddress)) {
-            result = result.add(result.multiply(DIFFERENT_STREET_RATE));
+            result = result.add(result.multiply(costProperties.getDifferentStreetRate()));
         }
 
         return result.setScale(2, RoundingMode.HALF_UP);
@@ -95,15 +97,18 @@ public class DeliveryServiceImpl implements DeliveryService {
         delivery.setDeliveryState(DeliveryState.IN_PROGRESS);
         deliveryRepository.save(delivery);
 
-        orderClient.assembly(orderId);
+        callFeignVoid(
+            () -> orderClient.assembly(orderId),
+            ""
+        );
 
 
-          callFeignVoid(
-              () -> warehouseClient.shippedToDelivery(
-                new ShippedToDeliveryRequest(orderId, delivery.getDeliveryId())
-              ),
-              "Не удалось передать товары в доставку на складе"
-          );
+        callFeignVoid(
+          () -> warehouseClient.shippedToDelivery(
+            new ShippedToDeliveryRequest(orderId, delivery.getDeliveryId())
+          ),
+          "Не удалось передать товары в доставку на складе"
+        );
     }
 
     @Override
@@ -183,10 +188,10 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
 
     private String nullToEmpty(String value) {
-        return value == null ? "" : value;
+        return Objects.toString(value, "");
     }
 
-    private AddressDto deliveryMapperToAddressDto(ru.practicum.model.Address address) {
+    private AddressDto mapDeliveryAddress(Address address) {
         if (address == null) {
             return null;
         }

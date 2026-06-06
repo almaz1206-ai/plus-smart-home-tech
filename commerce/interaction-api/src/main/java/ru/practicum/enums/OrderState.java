@@ -3,8 +3,6 @@ package ru.practicum.enums;
 public enum OrderState {
     NEW,
     ON_PAYMENT,
-    ON_DELIVERY,
-    DONE,
     DELIVERED,
     ASSEMBLED,
     PAID,

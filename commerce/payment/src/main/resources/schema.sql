@@ -5,5 +5,7 @@ CREATE TABLE IF NOT EXISTS payments (
     delivery_total NUMERIC(38, 2) NOT NULL,
     fee_total NUMERIC(38, 2) NOT NULL,
     total_payment NUMERIC(38, 2) NOT NULL,
-    state VARCHAR(20) NOT NULL
+    state VARCHAR(20) NOT NULL,
+
+    CONSTRAINT uq_payments_order_id UNIQUE (order_id)
 );

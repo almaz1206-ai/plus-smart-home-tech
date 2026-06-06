@@ -20,7 +20,6 @@ import ru.practicum.exception.NoOrderFoundException;
 import ru.practicum.exception.NotEnoughInfoInOrderToCalculateException;
 import ru.practicum.feign.DeliveryClient;
 import ru.practicum.feign.PaymentClient;
-import ru.practicum.feign.ShoppingCartClient;
 import ru.practicum.feign.WarehouseClient;
 import ru.practicum.mapper.OrderMapper;
 import ru.practicum.model.Order;
@@ -41,7 +40,6 @@ public class OrderServiceImpl implements OrderService {
     private final DeliveryClient deliveryClient;
     private final PaymentClient paymentClient;
     private final WarehouseClient warehouseClient;
-    private final ShoppingCartClient shoppingCartClient;
 
     @Override
     @Transactional(readOnly = true)
